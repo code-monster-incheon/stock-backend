@@ -7,9 +7,11 @@ import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class StockService {
@@ -18,31 +20,31 @@ public class StockService {
     Document document;
     String baseUrl = "https://finance.naver.com";
 
-    HashMap<String, ArrayList<Stock>> getStocks() throws IOException {
-        ArrayList<String> stockCategoryUrls = getStockCategoryUrls();
-        ArrayList<String> stockCategoryNames = getStockCategoryNames();
+    List<Dto.StockParam> getStocks() throws IOException {
+        List<String> stockCategoryUrls = getStockCategoryUrls();
+        List<String> stockCategoryNames = getStockCategoryNames();
 
-        HashMap<String, ArrayList<Stock>> stocks = getStocksByCategory(stockCategoryUrls, stockCategoryNames);
+        Map<String, List<Dto.Stock>> stocks = getStocksByCategory(stockCategoryUrls, stockCategoryNames);
 
-        return stocks;
+        return stocks
+                .entrySet()
+                .stream()
+                .map(stock-> Dto.StockParam.builder().title(stock.getKey()).stockList(stock.getValue()).build())
+                .collect(Collectors.toList());
     }
 
-    private ArrayList<String> getStockCategoryNames() throws IOException {
+    private List<String> getStockCategoryNames() throws IOException {
+
         String stockThemeUrl = "/sise/theme.nhn";
         document = Jsoup.connect(baseUrl + stockThemeUrl).get();
 
-        ArrayList<String> stockCategoryNames = new ArrayList<>();
         Elements elements = document.select("td.col_type1");
 
-        for(Element element : elements){
-            String stockCategoryName = element.text();
-            stockCategoryNames.add(stockCategoryName);
-        }
-
-        return stockCategoryNames;
+        return elements.stream()
+                .map(Element::text).collect(Collectors.toList());
     }
 
-    private ArrayList<String> getStockCategoryUrls() throws IOException {
+    private List<String> getStockCategoryUrls() throws IOException {
         String stockThemeUrl = "/sise/theme.nhn";
         document = Jsoup.connect(baseUrl + stockThemeUrl).get();
 
@@ -57,8 +59,10 @@ public class StockService {
         return stockCategoryUrls;
     }
 
-    private HashMap<String, ArrayList<Stock>> getStocksByCategory(ArrayList<String> stockCategoryUrls, ArrayList<String> stockCategoryNames) throws IOException {
-        HashMap<String, ArrayList<Stock>> results = new HashMap<>();
+    private Map<String, List<Dto.Stock>> getStocksByCategory(
+            List<String> stockCategoryUrls
+            , List<String> stockCategoryNames) throws IOException {
+        HashMap<String, List<Dto.Stock>> results = new HashMap<>();
 
         for (int idx = 0; idx < stockCategoryUrls.size(); idx++){
             String stockCategoryUrl = stockCategoryUrls.get(idx);
@@ -67,7 +71,7 @@ public class StockService {
 
             ArrayList<String> stockNames = new ArrayList<>();
             ArrayList<String> stockChangeRatios = new ArrayList<>();
-            ArrayList<Stock> stocks = new ArrayList<>();
+            List<Dto.Stock> stocks = new ArrayList<>();
 
 
             Elements elements = document.select("div.name_area > a");
@@ -87,12 +91,10 @@ public class StockService {
                 }
             }
 
-            // first element is category's total change ratio, NOT stock's
             stockChangeRatios.remove(0);
 
             for(int i = 0; i < stockNames.size(); i++){
-                Stock stock = new Stock(stockNames.get(i), stockChangeRatios.get(i));
-                stocks.add(stock);
+                stocks.add(Dto.Stock.builder().name(stockNames.get(i)).changeRatio(stockChangeRatios.get(i)).build());
             }
 
             results.put(stockCategoryName, stocks);
@@ -100,4 +102,5 @@ public class StockService {
 
         return results;
     }
+
 }
