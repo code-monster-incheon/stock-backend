@@ -1,4 +1,4 @@
-package com.codemonster.stockbackend.stock;
+package com.codemonster.stockbackend.domain.stock;
 
 import lombok.*;
 
@@ -6,5 +6,5 @@ import lombok.*;
 @Getter @Setter @ToString
 public class Stock {
     String name;
-    String changeRatio;
+    String dailyPriceChangeRatio;
 }
